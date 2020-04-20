@@ -16,8 +16,7 @@ public class AnalyzerServlet extends VaadinServlet implements SessionInitListene
     }
 
     @Override
-    public void sessionInit(SessionInitEvent event)
-        throws ServiceException {
+    public void sessionInit(SessionInitEvent event) throws ServiceException {
         System.out.println("Session in  AnalyzerServlet is initialized");
     }
 

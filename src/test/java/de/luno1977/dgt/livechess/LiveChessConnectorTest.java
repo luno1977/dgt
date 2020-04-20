@@ -3,41 +3,62 @@ package de.luno1977.dgt.livechess;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Observable;
+import java.util.Observer;
 
 public class LiveChessConnectorTest {
 
-    private class TestMessageHandler implements LiveChessConnector.MessageHandler {
-        private List<String> messages = new ArrayList<String>();
+    private static class TestMessageHandler implements Observer {
+        private List<String> messages = new ArrayList<>();
         public List<String> getMessages() { return messages; }
-        public void handleMessage(String message) { messages.add(message); }
+
+        @Override
+        public void update(Observable o, Object msg) {
+            messages.add(msg.toString());
+            synchronized (this) {
+                notifyAll();
+            }
+        }
     }
 
     @Test
-    public void testConnection() throws Exception {
+    public void testConnection() {
 
         final LiveChessConnector liveChessConnection =
-                new LiveChessConnector(new URI("ws://localhost:1982/api/v1.0"));
+                new LiveChessConnector(LiveChessConfig.getInstance().getLiveChessWebSocketEndpoint());
 
-        TestMessageHandler handler = new TestMessageHandler() {
-            public void handleMessage(String message) {
-                super.handleMessage(message);
-                Assert.assertTrue(message.contains(
+        final TestMessageHandler handler = new TestMessageHandler() {
+            public void update(Observable o, Object msg) {
+                super.update(o, msg);
+                Assert.assertTrue(msg.toString().contains(
                         "\"response\":\"call\",\"id\":36,\"param\":[{\"serialnr\""));
             }
         };
 
-        liveChessConnection.addMessageHandler(handler);
+        liveChessConnection.addObserver(handler);
         liveChessConnection.sendMessage("{\n" +
                 "    \"call\": \"eboards\",\n" +
                 "    \"id\": 36,\n" +
                 "    \"param\": null\n" +
                 "}");
 
-        Thread.sleep(3000);
+        synchronized (handler) {
+            int n = 0;
+            while (handler.getMessages().size() < 1 && n < 5) {
+                try {
+                    handler.wait(200);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } finally {
+                    n++;
+                }
+            }
+        }
+
         System.out.println(handler.getMessages());
         Assert.assertEquals(1, handler.getMessages().size());
+        liveChessConnection.deleteObserver(handler);
     }
 }

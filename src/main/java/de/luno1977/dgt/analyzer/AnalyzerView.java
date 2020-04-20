@@ -8,12 +8,13 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.PWA;
 import com.vaadin.flow.shared.communication.PushMode;
+import de.luno1977.dgt.livechess.EBoardsResponse;
 import de.luno1977.dgt.livechess.LiveChessConnector;
+import de.luno1977.dgt.livechess.WebSocketCommunicator;
 
 import javax.servlet.annotation.WebServlet;
-import java.net.URI;
-import java.net.URISyntaxException;
 
 /**
  * The main view contains a button and a click listener.
@@ -21,7 +22,7 @@ import java.net.URISyntaxException;
 
 @Route("")
 @WebServlet(asyncSupported = true)
-//@PWA(name = "DGT Analyzer", shortName = "Analyzer")
+@PWA(name = "DGT Game Analyzer", shortName = "Analyzer")
 @CssImport("./styles/shared-styles.css")
 @CssImport(value = "./styles/vaadin-text-field-styles.css", themeFor = "vaadin-text-field")
 @Push(PushMode.MANUAL)
@@ -33,7 +34,7 @@ public class AnalyzerView extends VerticalLayout {
         private Runnable messageGenerator;
     private boolean isRunning = false;
 
-    private class DGTMessageHandler implements LiveChessConnector.MessageHandler {
+    private class DGTMessageHandler {
         final UI ui;
         final HasComponents components;
 
@@ -57,6 +58,8 @@ public class AnalyzerView extends VerticalLayout {
         text.setWidthFull();
         text.setAutofocus(true);
 
+        //Proof that my servlet is used.
+        //System.out.println(VaadinServlet.getCurrent().getServletName());
 
         Button connectButton = new Button("Connect DGT Board");
         connectButton.addClickListener((ComponentEventListener<ClickEvent<Button>>) event -> {
@@ -82,29 +85,15 @@ public class AnalyzerView extends VerticalLayout {
 
     private void connectToBoard(UI ui, HasComponents view) {
 
-        try {
-            if (liveChessConnection == null) {
-                liveChessConnection = new LiveChessConnector(new URI("ws://localhost:1982/api/v1.0"));
-            }
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
-
-        liveChessConnection.addMessageHandler(new DGTMessageHandler(ui, view));
-
-        final String listBoardsMessage = "{\n" +
-                "    \"call\": \"eboards\",\n" +
-                "    \"id\": 36,\n" +
-                "    \"param\": null\n" +
-                "}";
+        WebSocketCommunicator boardCommunicator = WebSocketCommunicator.getInstance();
+        EBoardsResponse eBoards = boardCommunicator.getEBoards();
 
         ui.access(() -> {
-            view.add(new Div(new Text("DGT request: " + listBoardsMessage)));
+            view.add(new Div(new Text("DGT request: " + eBoards.toString())));
             ui.push();
         });
 
-        liveChessConnection.sendMessage(listBoardsMessage);
-
+        /*
         final String subscribeMessage = "{\n" +
                 "    \"call\": \"subscribe\",\n" +
                 "    \"id\": 42,\n" +
@@ -123,6 +112,7 @@ public class AnalyzerView extends VerticalLayout {
         });
 
         liveChessConnection.sendMessage(subscribeMessage);
+        */
     }
 
     private void startMessageGeneration(UI ui, HasComponents view) {
@@ -145,21 +135,3 @@ public class AnalyzerView extends VerticalLayout {
         new Thread(messageGenerator).start();
     }
 }
-
-/*
-// Use custom CSS classes to apply styling. This is defined in shared-styles.css.
-        //addClassName("centered-content");
-
-        // Have some data
-        List<DGTBoardMessage> messages = Arrays.asList(
-                new DGTBoardMessage("Nicolaus Copernicus"),
-                new DGTBoardMessage("Galileo Galilei"),
-                new DGTBoardMessage("Johannes Kepler"));
-
-        // Create a grid bound to the list
-        Grid<DGTBoardMessage> grid = new Grid<>();
-        grid.setWidth("100%");
-        grid.setHeight("100%");
-        grid.setItems(messages);
-        grid.addColumn(DGTBoardMessage::getJsonMessage).setHeader("Board Message");
- */

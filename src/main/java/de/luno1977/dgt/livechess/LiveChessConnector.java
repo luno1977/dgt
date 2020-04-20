@@ -1,14 +1,13 @@
 package de.luno1977.dgt.livechess;
 
-
 import javax.websocket.*;
 import java.net.URI;
+import java.util.Observable;
 
 @ClientEndpoint
-public class LiveChessConnector {
+public class LiveChessConnector extends Observable {
 
     Session userSession = null;
-    private MessageHandler messageHandler;
 
     public LiveChessConnector(URI endpointURI) {
         try {
@@ -49,20 +48,13 @@ public class LiveChessConnector {
      */
     @OnMessage
     public void onMessage(String message) {
-        if (this.messageHandler != null) {
-            this.messageHandler.handleMessage(message);
-        }
-    }
+        System.out.println("Send to " + this.countObservers() + " observers: " + message);
 
-    public void addMessageHandler(MessageHandler msgHandler) {
-        this.messageHandler = msgHandler;
+        this.setChanged();
+        this.notifyObservers(message);
     }
 
     public void sendMessage(String message) {
         this.userSession.getAsyncRemote().sendText(message);
-    }
-
-    public interface MessageHandler {
-        void handleMessage(String message);
     }
 }
