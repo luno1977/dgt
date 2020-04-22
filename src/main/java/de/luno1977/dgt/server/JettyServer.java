@@ -1,4 +1,4 @@
-package de.luno1977.dgt.analyzer;
+package de.luno1977.dgt.server;
 
 import com.vaadin.flow.server.startup.ServletContextListeners;
 import org.eclipse.jetty.annotations.AnnotationConfiguration;

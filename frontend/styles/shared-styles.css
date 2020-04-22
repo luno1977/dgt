@@ -10,3 +10,12 @@
   max-width: 250px;
 }
 
+.board {
+  width: 100%;
+}
+
+.board:after {
+  content: "";
+  display: block;
+  padding-bottom: 100%;
+}

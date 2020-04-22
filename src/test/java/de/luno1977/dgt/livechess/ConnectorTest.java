@@ -8,26 +8,26 @@ import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
 
-public class LiveChessConnectorTest {
+public class ConnectorTest {
 
     private static class TestMessageHandler implements Observer {
-        private List<String> messages = new ArrayList<>();
+        private final List<String> messages = new ArrayList<>();
         public List<String> getMessages() { return messages; }
 
         @Override
         public void update(Observable o, Object msg) {
             messages.add(msg.toString());
-            synchronized (this) {
-                notifyAll();
+            synchronized (messages) {
+                messages.notifyAll();
             }
         }
     }
 
     @Test
-    public void testConnection() {
+    public void testConnection() throws Exception {
 
-        final LiveChessConnector liveChessConnection =
-                new LiveChessConnector(LiveChessConfig.getInstance().getLiveChessWebSocketEndpoint());
+        final LiveChess.Connector liveChessConnection =
+                new LiveChess.Connector(LiveChessConfig.getInstance().getLiveChessWebSocketEndpoint());
 
         final TestMessageHandler handler = new TestMessageHandler() {
             public void update(Observable o, Object msg) {
@@ -44,11 +44,11 @@ public class LiveChessConnectorTest {
                 "    \"param\": null\n" +
                 "}");
 
-        synchronized (handler) {
+        synchronized (handler.messages) {
             int n = 0;
             while (handler.getMessages().size() < 1 && n < 5) {
                 try {
-                    handler.wait(200);
+                    handler.messages.wait(200);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } finally {

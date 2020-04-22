@@ -1,18 +1,17 @@
-package de.luno1977.dgt.analyzer;
+package de.luno1977.dgt.analyzer.view;
 
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dependency.CssImport;
-import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.PWA;
 import com.vaadin.flow.shared.communication.PushMode;
-import de.luno1977.dgt.livechess.EBoardsResponse;
-import de.luno1977.dgt.livechess.LiveChessConnector;
-import de.luno1977.dgt.livechess.WebSocketCommunicator;
+import de.luno1977.dgt.livechess.LiveChess;
+import de.luno1977.dgt.livechess.WebSocketResponse;
 
 import javax.servlet.annotation.WebServlet;
 
@@ -26,9 +25,7 @@ import javax.servlet.annotation.WebServlet;
 @CssImport("./styles/shared-styles.css")
 @CssImport(value = "./styles/vaadin-text-field-styles.css", themeFor = "vaadin-text-field")
 @Push(PushMode.MANUAL)
-public class AnalyzerView extends VerticalLayout {
-
-    public static LiveChessConnector liveChessConnection;
+public class AnalyzerView extends HorizontalLayout {
 
     private TextArea text = new TextArea();
         private Runnable messageGenerator;
@@ -54,42 +51,40 @@ public class AnalyzerView extends VerticalLayout {
     }
 
     public AnalyzerView() {
-        text.setHeight("50%");
-        text.setWidthFull();
-        text.setAutofocus(true);
-
         //Proof that my servlet is used.
         //System.out.println(VaadinServlet.getCurrent().getServletName());
+
+        ChessBoardView board = new ChessBoardView();
+        board.setMinWidth("400px");
+        board.setMinHeight("400px");
 
         Button connectButton = new Button("Connect DGT Board");
         connectButton.addClickListener((ComponentEventListener<ClickEvent<Button>>) event -> {
             connectToBoard(UI.getCurrent(), this);
         });
 
-        Button newMessage = new Button("generate messages");
-        newMessage.addClickListener((ComponentEventListener<ClickEvent<Button>>) event -> {
-            Button source = event.getSource();
-            if (source.getText().startsWith("generate")) {
-                isRunning = true;
-                startMessageGeneration(UI.getCurrent(), this);
-                source.setText("stop message generation");
-            } else {
-                isRunning = false;
-                source.setText("generate messages");
-            }
-        });
+        VerticalLayout left = new VerticalLayout();
+        left.setMinHeight("400px");
+        left.setMinWidth("400px");
+        left.setSizeUndefined();
+        left.add(board, connectButton);
 
-        add(text, connectButton);
+        text.setAutofocus(true);
+        text.setSizeFull();
+
+        VerticalLayout right = new VerticalLayout();
+        right.add(text);
+
+        add(left, right);
         setSizeFull();
     }
 
     private void connectToBoard(UI ui, HasComponents view) {
 
-        WebSocketCommunicator boardCommunicator = WebSocketCommunicator.getInstance();
-        EBoardsResponse eBoards = boardCommunicator.getEBoards();
+        WebSocketResponse.EBoardsResponse eBoards = LiveChess.getInstance().getEBoards();
 
         ui.access(() -> {
-            view.add(new Div(new Text("DGT request: " + eBoards.toString())));
+            text.setValue(text.getValue() + "DGT request: " + eBoards.toString() + "\n");
             ui.push();
         });
 
@@ -113,25 +108,5 @@ public class AnalyzerView extends VerticalLayout {
 
         liveChessConnection.sendMessage(subscribeMessage);
         */
-    }
-
-    private void startMessageGeneration(UI ui, HasComponents view) {
-        messageGenerator = () -> {
-            while (isRunning) {
-                ui.access(() -> {
-                    view.add(new Div(new Text(String.valueOf(System.currentTimeMillis()))));
-                });
-
-                try {
-                    Thread.sleep(2000);
-                } catch (InterruptedException ie) {
-                    System.out.println("Error Interrupted");
-                }
-
-                ui.access(ui::push);
-            }
-        };
-
-        new Thread(messageGenerator).start();
     }
 }
