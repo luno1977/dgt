@@ -6,41 +6,15 @@ import io.reactivex.Observable;
 
 public class EBoardEventFeed extends WebSocketFeed.BaseFeed<EBoardEvent, EBoardEventResponse> {
 
-    private long id;
-    private Boolean flipped;
-    private boolean subscribed;
-
     public EBoardEventFeed() {
-        id = FEED_IDS.getAndIncrement();
-        subscribed = false;
+        super("eBoardEventFeed".toLowerCase());
     }
 
-    @Override
-    public long getId() {
-        return id;
+    public void flip(boolean flipped) {
+        new WebSocketCall.Flip.Handler(flipped).call();
     }
 
-    @Override
-    public String getFeed() {
-        return null;
+    public void setup(String fen) {
+        new WebSocketCall.Setup.Handler(fen).call();
     }
-
-    @Override
-    public Observable<EBoardEvent> events() {
-        return null;
-    }
-
-    @Override
-    public boolean isSubscribed() {
-        return subscribed;
-    }
-
-    public void flip() {
-
-    }
-
-    public void setup() {
-
-    }
-
 }
