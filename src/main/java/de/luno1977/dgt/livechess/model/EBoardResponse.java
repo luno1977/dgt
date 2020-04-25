@@ -80,4 +80,18 @@ public class EBoardResponse {
                 ", clock=" + clock +
                 '}';
     }
+
+    public static class EBoardRef {
+        private final String serialNr;
+
+        @JsonCreator
+        public EBoardRef(@JsonProperty("serialnr") String serialNr) {
+            this.serialNr = serialNr;
+        }
+
+        @JsonProperty("serialnr")
+        public String getSerialNr() {
+            return serialNr;
+        }
+    }
 }

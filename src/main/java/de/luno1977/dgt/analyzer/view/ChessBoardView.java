@@ -62,15 +62,26 @@ public class ChessBoardView extends FlexLayout {
     }
 
     public void present(String fenPeacePlacement) {
+        if (fenPeacePlacement == null) return;
+
+        System.out.println("FEN: " + fenPeacePlacement);
+
         int row = 0; int column = 0;
         for (int i = 0; i < fenPeacePlacement.length(); i++) {
             char c = fenPeacePlacement.charAt(i);
             if (c >= 65 && c <= 122) {
                 String imagePath = fenToImage.get(c);
                 if (imagePath != null) {
-                    Image image = new Image(imagePath, "");
-                    image.setWidthFull();
-                    squares[column][row].add(image);
+                    String src = squares[column][row].getChildren().findFirst().map(image ->
+                        image.getElement().getAttribute("src")
+                    ).orElse(null);
+
+                    if (src == null || !src.endsWith(imagePath)) {
+                        squares[column][row].removeAll();
+                        Image image = new Image(imagePath, "");
+                        image.setWidthFull();
+                        squares[column][row].add(image);
+                    }
                 } else {
                     throw new RuntimeException("Peace '" + c + "' not found.");
                 }

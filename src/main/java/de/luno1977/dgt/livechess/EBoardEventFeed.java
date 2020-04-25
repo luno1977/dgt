@@ -1,13 +1,18 @@
 package de.luno1977.dgt.livechess;
 
-import de.luno1977.dgt.livechess.model.EBoardEvent;
+import de.luno1977.dgt.livechess.WebSocketFeed.Base;
+import de.luno1977.dgt.livechess.WebSocketFeed.EBoardEvent;
 import de.luno1977.dgt.livechess.model.EBoardEventResponse;
-import io.reactivex.Observable;
+import de.luno1977.dgt.livechess.model.EBoardResponse;
+import de.luno1977.dgt.livechess.model.EBoardResponse.EBoardRef;
 
-public class EBoardEventFeed extends WebSocketFeed.BaseFeed<EBoardEvent, EBoardEventResponse> {
+public class EBoardEventFeed extends Base<EBoardEvent, EBoardEventResponse, EBoardRef> {
 
-    public EBoardEventFeed() {
-        super("eBoardEventFeed".toLowerCase());
+    /**
+     * @param serialNr the serialNr of the eBoard.
+     */
+    public EBoardEventFeed(String serialNr) {
+        super("eboardevent", new EBoardRef(serialNr), EBoardEvent.class);
     }
 
     public void flip(boolean flipped) {

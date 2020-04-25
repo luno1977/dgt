@@ -7,6 +7,9 @@ import de.luno1977.dgt.livechess.WebSocketCall.EBoards;
 import de.luno1977.dgt.livechess.WebSocketCall.Sources;
 import de.luno1977.dgt.livechess.WebSocketResponse.EBoardsResponse;
 import de.luno1977.dgt.livechess.WebSocketResponse.SourcesResponse;
+import de.luno1977.dgt.livechess.model.EBoardResponse;
+import io.reactivex.Observable;
+import io.reactivex.subjects.PublishSubject;
 
 import javax.websocket.*;
 import java.io.IOException;
@@ -22,7 +25,8 @@ public class LiveChess {
 
     private static LiveChess instance;
     private final Connector connector;
-    private final ExecutorService executor = Executors.newFixedThreadPool(10);
+    private final ExecutorService callConnectionPool = Executors.newFixedThreadPool(5);
+    private final ExecutorService feedConnectionPool = Executors.newCachedThreadPool();
 
     private LiveChess() {
         URI wsEndpoint = LiveChessConfig.getInstance().getLiveChessWebSocketEndpoint();
@@ -44,8 +48,8 @@ public class LiveChess {
 
     public SourcesResponse getSources() { return new Sources.Handler().call(); }
 
-    public EBoardEventFeed subscribe() {
-        EBoardEventFeed feed = new EBoardEventFeed();
+    public EBoardEventFeed subscribe(EBoardResponse eBoard) {
+        EBoardEventFeed feed = new EBoardEventFeed(eBoard.getSerialNr());
         feed.subscribe();
         return feed;
     }
@@ -82,6 +86,7 @@ public class LiveChess {
          */
         @OnClose
         public void onClose(Session userSession, CloseReason reason) {
+            System.out.println("UserSession: " + userSession + " is closed with reason: " + reason);
             this.userSession = null;
         }
 
@@ -92,19 +97,22 @@ public class LiveChess {
          */
         @OnMessage
         public void onMessage(String message) {
+            System.out.println("Board response: " + message);
             this.setChanged();
             this.notifyObservers(message);
         }
 
         public void sendMessage(String message) {
             this.userSession.getAsyncRemote().sendText(message);
+            System.out.println("Board message:" + message);
         }
     }
+
 
     public abstract static class CallHandler<I extends WebSocketCall<?>, R extends WebSocketResponse<?>>
             implements Observer {
 
-        protected final ObjectMapper mapper = new ObjectMapper();
+        private final ObjectMapper mapper = new ObjectMapper();
         private final I input;
         private final Class<R> responseClass;
         private R result;
@@ -121,12 +129,11 @@ public class LiveChess {
 
         public R call() {
             try {
-                ExecutorService executor = getInstance().executor;
+                ExecutorService executor = getInstance().callConnectionPool;
                 executor.submit(getCaller()).get(3, TimeUnit.SECONDS);
                 return result;
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                e.printStackTrace();
-                return null;
+                throw new RuntimeException(e);
             }
         }
 
@@ -170,12 +177,96 @@ public class LiveChess {
                     }
                 }
             } catch (Exception e) {
+                e.printStackTrace();
                 throw new IllegalStateException(e);
             }
         }
 
         public void stop() {
             stopped = true;
+        }
+    }
+
+    public static class FeedHandler<E extends WebSocketFeed.Event<P>, P> implements Observer {
+
+        private final PublishSubject<E> publishSubject;
+        private boolean stopped = false;
+        private final ObjectMapper mapper = new ObjectMapper();
+        private final ConcurrentLinkedQueue<E> events = new ConcurrentLinkedQueue<>();
+        private final Class<E> eventsType;
+        private final long feedId;
+
+        public FeedHandler(long feedId, Class<E> eventsType) {
+            this.publishSubject = PublishSubject.create();
+            this.eventsType = eventsType;
+            this.feedId = feedId;
+        }
+
+        protected E mapValue(String jsonResponse) throws JsonProcessingException {
+            return mapper.readValue(jsonResponse, eventsType);
+        }
+
+        public void start() {
+            ExecutorService executor = getInstance().feedConnectionPool;
+            executor.execute(getFeeder());
+        }
+
+        private Runnable getFeeder() {
+            return () -> {
+                Connector connector = getInstance().connector;
+                try {
+                    connector.addObserver(this);
+                    this.publishSubject.subscribe();
+
+                    synchronized (this) {
+                        while (!stopped) {
+                            for (E e = events.poll(); e != null; e = events.poll()) {
+                                publishSubject.onNext(e);
+                            }
+
+                            try {
+                                this.wait(200);
+                            } catch (InterruptedException e) {
+                                System.out.println("Interrupted: " + stopped + ", " + events.size());
+                            }
+                        }
+
+                        publishSubject.onComplete();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    connector.deleteObserver(this);
+                }
+            };
+        }
+
+        @Override
+        public void update(java.util.Observable o, Object msg) {
+            String message = msg.toString();
+            try {
+                Map<String, Object> stringObjectMap = mapper.readValue(message,
+                        new TypeReference<Map<String, Object>>() {});
+                long messageFeedId = ((Number) stringObjectMap.get("id")).longValue();
+
+                if (messageFeedId == feedId) {
+                    events.offer(mapValue(message));
+                    synchronized (this) {
+                        this.notifyAll();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw new IllegalStateException(e);
+            }
+        }
+
+        public void stop() {
+            stopped = true;
+        }
+
+        public Observable<E> getObservable() {
+            return publishSubject;
         }
     }
 }

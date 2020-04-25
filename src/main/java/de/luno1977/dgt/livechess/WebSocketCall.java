@@ -25,19 +25,19 @@ public interface WebSocketCall<P> extends WebSocketCommunication<P> {
         }
     }
 
-    class Subscribe extends BaseCall<WebSocketFeed<?,?>> {
-        public Subscribe(WebSocketFeed<?,?> param) { super(param); }
+    class Subscribe extends BaseCall<WebSocketFeed<?,?,?>> {
+        public Subscribe(WebSocketFeed<?,?,?> feed) { super(feed); }
 
         public static class Handler extends CallHandler<Subscribe, Ack> {
-            public Handler(WebSocketFeed<?,?> param) { super(new Subscribe(param), Ack.class); }
+            public Handler(WebSocketFeed<?,?,?> feed) { super(new Subscribe(feed), Ack.class); }
         }
     }
 
     class Unsubscribe extends BaseCall<Long> {
-        public Unsubscribe(WebSocketFeed<?,?> feed) { super(feed.getId()); }
+        public Unsubscribe(WebSocketFeed<?,?,?> feed) { super(feed.getId()); }
 
         public static class Handler extends CallHandler<Unsubscribe, Ack> {
-            public Handler(WebSocketFeed<?,?> feed) { super(new Unsubscribe(feed), Ack.class); }
+            public Handler(WebSocketFeed<?,?,?> feed) { super(new Unsubscribe(feed), Ack.class); }
         }
     }
 

@@ -10,8 +10,13 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.PWA;
 import com.vaadin.flow.shared.communication.PushMode;
+import de.luno1977.dgt.livechess.EBoardEventFeed;
 import de.luno1977.dgt.livechess.LiveChess;
+import de.luno1977.dgt.livechess.WebSocketFeed;
 import de.luno1977.dgt.livechess.WebSocketResponse;
+import io.reactivex.Observable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 
 import javax.servlet.annotation.WebServlet;
 
@@ -27,47 +32,44 @@ import javax.servlet.annotation.WebServlet;
 @Push(PushMode.MANUAL)
 public class AnalyzerView extends HorizontalLayout {
 
-    private TextArea text = new TextArea();
-        private Runnable messageGenerator;
-    private boolean isRunning = false;
-
-    private class DGTMessageHandler {
-        final UI ui;
-        final HasComponents components;
-
-        public DGTMessageHandler(UI ui, HasComponents components) {
-            this.ui = ui;
-            this.components = components;
-        }
-
-        public void handleMessage(String message) {
-            System.out.println("Board Change: " + message);
-            ui.access(() -> {
-                //components.add(new Div(new Text("DGT response: " + message)));
-                text.setValue(text.getValue() + "\n" + "DGT response: " + message);
-                ui.push();
-            });
-        }
-    }
+    private final TextArea text = new TextArea();
+    private Disposable eventsDisposable;
+    private EBoardEventFeed eBoardEventFeed;
+    private final ChessBoardView board;
+    private final Button connectButton;
+    private final Button disconnectButton;
 
     public AnalyzerView() {
         //Proof that my servlet is used.
         //System.out.println(VaadinServlet.getCurrent().getServletName());
 
-        ChessBoardView board = new ChessBoardView();
+        board = new ChessBoardView();
         board.setMinWidth("400px");
         board.setMinHeight("400px");
 
-        Button connectButton = new Button("Connect DGT Board");
+        connectButton = new Button("Connect DGT Board");
+        disconnectButton = new Button("Disconnect DGT Board");
+
         connectButton.addClickListener((ComponentEventListener<ClickEvent<Button>>) event -> {
-            connectToBoard(UI.getCurrent(), this);
+            connectToBoard(UI.getCurrent());
+            disconnectButton.setEnabled(true);
+            connectButton.setEnabled(false);
         });
+
+        disconnectButton.addClickListener((ComponentEventListener<ClickEvent<Button>>) event -> {
+            this.text.clear();
+            LiveChess.getInstance().unsubscribe(eBoardEventFeed);
+            disconnectButton.setEnabled(false);
+            connectButton.setEnabled(true);
+        });
+
+        disconnectButton.setEnabled(false);
 
         VerticalLayout left = new VerticalLayout();
         left.setMinHeight("400px");
         left.setMinWidth("400px");
         left.setSizeUndefined();
-        left.add(board, connectButton);
+        left.add(board, connectButton, disconnectButton);
 
         text.setAutofocus(true);
         text.setSizeFull();
@@ -79,34 +81,40 @@ public class AnalyzerView extends HorizontalLayout {
         setSizeFull();
     }
 
-    private void connectToBoard(UI ui, HasComponents view) {
+    private void connectToBoard(UI ui) {
 
-        WebSocketResponse.EBoardsResponse eBoards = LiveChess.getInstance().getEBoards();
+        LiveChess liveChess = LiveChess.getInstance();
+        WebSocketResponse.EBoardsResponse eBoards = liveChess.getEBoards();
 
         ui.access(() -> {
             text.setValue(text.getValue() + "DGT request: " + eBoards.toString() + "\n");
             ui.push();
         });
 
-        /*
-        final String subscribeMessage = "{\n" +
-                "    \"call\": \"subscribe\",\n" +
-                "    \"id\": 42,\n" +
-                "    \"param\": {\n" +
-                "        \"feed\": \"eboardevent\",\n" +
-                "        \"id\": 7,\n" +
-                "        \"param\": {\n" +
-                "            \"serialnr\": \"40195\"\n" +
-                "        }\n" +
-                "    }\n" +
-                "}";
+        eBoardEventFeed = liveChess.subscribe(eBoards.getParam().get(0));
+        Observable<WebSocketFeed.EBoardEvent> events = eBoardEventFeed.events();
+        eventsDisposable = events.observeOn(Schedulers.single()).subscribe(
+                message -> {
+                    ui.access(() -> {
+                        //text.setValue(text.getValue() + "\n" + "EBoardEventFeed: " + message);
+                        board.present(message.getParam().getBoard());
+                        ui.push();
+                    });
+                },
+                error -> {
+                    throw new RuntimeException(error);
+                },
+                () -> ui.access(() -> {
+                    text.setValue(text.getValue() + "\n Completed: " + eBoardEventFeed);
+                    ui.push();
+                })
+        );
+    }
 
-        ui.access(() -> {
-            view.add(new Div(new Text("DGT request: " + subscribeMessage)));
-            ui.push();
-        });
-
-        liveChessConnection.sendMessage(subscribeMessage);
-        */
+    @Override
+    protected void finalize() throws Throwable {
+        super.finalize();
+        LiveChess.getInstance().unsubscribe(eBoardEventFeed);
+        eventsDisposable.dispose();
     }
 }
