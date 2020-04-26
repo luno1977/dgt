@@ -1,6 +1,7 @@
 package de.luno1977.dgt.livechess;
 
 import de.luno1977.dgt.livechess.model.EBoardResponse;
+import de.luno1977.dgt.livechess.model.ErrorMessage;
 import de.luno1977.dgt.livechess.model.SourceResponse;
 
 import java.util.List;
@@ -12,6 +13,7 @@ public interface WebSocketResponse<P> extends WebSocketCommunication<P> {
     class EBoardsResponse extends Base<List<EBoardResponse>> {}
     class SourcesResponse extends Base<List<SourceResponse>> {}
     class Ack extends Base<Object> {}
+    class ErrorResponse extends Base<ErrorMessage> {}
 
     abstract class Base<P> implements WebSocketResponse<P> {
         private String response;
@@ -64,5 +66,4 @@ public interface WebSocketResponse<P> extends WebSocketCommunication<P> {
                     '}';
         }
     }
-
 }

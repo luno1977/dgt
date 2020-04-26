@@ -1,14 +1,14 @@
 package de.luno1977.dgt.livechess;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import de.luno1977.dgt.livechess.model.EBoardEventResponse;
 import io.reactivex.Observable;
 
 import java.util.concurrent.atomic.AtomicLong;
 
 public interface WebSocketFeed<E extends WebSocketFeed.Event<EP>, EP, P> extends WebSocketCommunication<P> {
-
-    AtomicLong FEED_IDS = new AtomicLong(0L);
 
     /**
      * @return the name of the feed.
@@ -48,6 +48,19 @@ public interface WebSocketFeed<E extends WebSocketFeed.Event<EP>, EP, P> extends
     class EBoardEvent extends WebSocketResponse.Base<EBoardEventResponse>
                       implements Event<EBoardEventResponse> {}
 
+    class FeedRef {
+        private final long id;
+
+        @JsonCreator
+        public FeedRef(@JsonProperty("id") long id) {
+            this.id = id;
+        }
+
+        public long getId() {
+            return id;
+        }
+    }
+
 
     abstract class Base<E extends WebSocketFeed.Event<EP>, EP, P> implements WebSocketFeed<E,EP,P> {
 
@@ -61,7 +74,7 @@ public interface WebSocketFeed<E extends WebSocketFeed.Event<EP>, EP, P> extends
         private LiveChess.FeedHandler<E, EP> events;
 
         public Base(String feed, P param, Class<E> eventType) {
-            this.id = FEED_IDS.getAndIncrement();
+            this.id = IDS.getAndIncrement();
             this.feed = feed;
             this.param = param;
             this.eventType = eventType;
@@ -103,6 +116,15 @@ public interface WebSocketFeed<E extends WebSocketFeed.Event<EP>, EP, P> extends
         @Override @JsonIgnore
         public Observable<E> events() {
             return events.getObservable();
+        }
+
+        @Override
+        public String toString() {
+            return this.getClass().getSimpleName()+"{" +
+                    "id=" + id +
+                    ", param=" + param +
+                    ", feed='" + feed + '\'' +
+                    '}';
         }
     }
 }

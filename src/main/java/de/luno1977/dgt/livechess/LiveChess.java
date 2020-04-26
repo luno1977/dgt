@@ -1,20 +1,19 @@
 package de.luno1977.dgt.livechess;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.luno1977.dgt.livechess.WebSocketCall.EBoards;
 import de.luno1977.dgt.livechess.WebSocketCall.Sources;
 import de.luno1977.dgt.livechess.WebSocketResponse.EBoardsResponse;
+import de.luno1977.dgt.livechess.WebSocketResponse.ErrorResponse;
 import de.luno1977.dgt.livechess.WebSocketResponse.SourcesResponse;
 import de.luno1977.dgt.livechess.model.EBoardResponse;
+import de.luno1977.dgt.livechess.model.ResponseHeader;
 import io.reactivex.Observable;
 import io.reactivex.subjects.PublishSubject;
 
 import javax.websocket.*;
 import java.io.IOException;
 import java.net.URI;
-import java.util.Map;
 import java.util.Observer;
 import java.util.concurrent.*;
 
@@ -116,15 +115,12 @@ public class LiveChess {
         private final I input;
         private final Class<R> responseClass;
         private R result;
+        private ErrorResponse error;
         private boolean stopped = false;
 
         protected CallHandler(I input, Class<R> responseClass) {
             this.input = input;
             this.responseClass = responseClass;
-        }
-
-        protected R mapValue(String jsonResponse) throws JsonProcessingException {
-            return mapper.readValue(jsonResponse, responseClass);
         }
 
         public R call() {
@@ -133,7 +129,7 @@ public class LiveChess {
                 executor.submit(getCaller()).get(3, TimeUnit.SECONDS);
                 return result;
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                throw new RuntimeException(e);
+                throw new LiveChessException("Error during WebSocketCall", e);
             }
         }
 
@@ -146,7 +142,7 @@ public class LiveChess {
                     connector.sendMessage(message);
 
                     synchronized (this) {
-                        while (result == null && !stopped) {
+                        while (result == null && error == null & !stopped) {
                             try {
                                 this.wait(200);
                             } catch (InterruptedException e) {
@@ -154,6 +150,11 @@ public class LiveChess {
                             }
                         }
                     }
+
+                    if (error != null) {
+                        throw new LiveChessException(error.getParam().getMessage(), error.getParam().getStacktrace());
+                    }
+
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {
@@ -166,15 +167,15 @@ public class LiveChess {
         public void update(java.util.Observable o, Object msg) {
             String message = msg.toString();
             try {
-                Map<String, Object> stringObjectMap = mapper.readValue(message,
-                        new TypeReference<Map<String, Object>>() {});
-                long messageId = ((Number) stringObjectMap.get("id")).longValue();
-
-                if (messageId == input.getId()) {
-                    result = mapValue(message);
-                    synchronized (this) {
-                        this.notifyAll();
+                ResponseHeader header = mapper.readValue(message, ResponseHeader.class);
+                if (header.getId() == input.getId()) {
+                    if ("error".equals(header.getResponse())) {
+                        error = mapper.readValue(message, ErrorResponse.class);
                     }
+                    if ("call".equals(header.getResponse())) {
+                        result = mapper.readValue(message, responseClass);
+                    }
+                    synchronized (this) { this.notifyAll(); }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -200,10 +201,6 @@ public class LiveChess {
             this.publishSubject = PublishSubject.create();
             this.eventsType = eventsType;
             this.feedId = feedId;
-        }
-
-        protected E mapValue(String jsonResponse) throws JsonProcessingException {
-            return mapper.readValue(jsonResponse, eventsType);
         }
 
         public void start() {
@@ -245,12 +242,9 @@ public class LiveChess {
         public void update(java.util.Observable o, Object msg) {
             String message = msg.toString();
             try {
-                Map<String, Object> stringObjectMap = mapper.readValue(message,
-                        new TypeReference<Map<String, Object>>() {});
-                long messageFeedId = ((Number) stringObjectMap.get("id")).longValue();
-
-                if (messageFeedId == feedId) {
-                    events.offer(mapValue(message));
+                ResponseHeader header = mapper.readValue(message, ResponseHeader.class);
+                if (header.getId() == feedId && "feed".equals(header.getResponse())) {
+                    events.offer(mapper.readValue(message, eventsType));
                     synchronized (this) {
                         this.notifyAll();
                     }

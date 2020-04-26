@@ -3,7 +3,6 @@ package de.luno1977.dgt.livechess;
 import de.luno1977.dgt.livechess.WebSocketFeed.Base;
 import de.luno1977.dgt.livechess.WebSocketFeed.EBoardEvent;
 import de.luno1977.dgt.livechess.model.EBoardEventResponse;
-import de.luno1977.dgt.livechess.model.EBoardResponse;
 import de.luno1977.dgt.livechess.model.EBoardResponse.EBoardRef;
 
 public class EBoardEventFeed extends Base<EBoardEvent, EBoardEventResponse, EBoardRef> {

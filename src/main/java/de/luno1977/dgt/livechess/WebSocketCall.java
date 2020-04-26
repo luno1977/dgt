@@ -1,15 +1,15 @@
 package de.luno1977.dgt.livechess;
 
 import de.luno1977.dgt.livechess.LiveChess.CallHandler;
+import de.luno1977.dgt.livechess.WebSocketFeed.FeedRef;
 import de.luno1977.dgt.livechess.WebSocketResponse.SourcesResponse;
 
 import javax.annotation.Nullable;
-import java.util.concurrent.atomic.AtomicLong;
 
-import static de.luno1977.dgt.livechess.WebSocketResponse.*;
+import static de.luno1977.dgt.livechess.WebSocketResponse.Ack;
+import static de.luno1977.dgt.livechess.WebSocketResponse.EBoardsResponse;
 
 public interface WebSocketCall<P> extends WebSocketCommunication<P> {
-    AtomicLong CALL_IDS = new AtomicLong(0L);
 
     String getCall();
 
@@ -33,8 +33,8 @@ public interface WebSocketCall<P> extends WebSocketCommunication<P> {
         }
     }
 
-    class Unsubscribe extends BaseCall<Long> {
-        public Unsubscribe(WebSocketFeed<?,?,?> feed) { super(feed.getId()); }
+    class Unsubscribe extends BaseCall<FeedRef> {
+        public Unsubscribe(WebSocketFeed<?,?,?> feed) { super(new FeedRef(feed.getId())); }
 
         public static class Handler extends CallHandler<Unsubscribe, Ack> {
             public Handler(WebSocketFeed<?,?,?> feed) { super(new Unsubscribe(feed), Ack.class); }
@@ -66,7 +66,7 @@ public interface WebSocketCall<P> extends WebSocketCommunication<P> {
         @Nullable private final P param;
 
         public BaseCall(@Nullable P param) {
-            this.id = CALL_IDS.getAndIncrement();
+            this.id = IDS.getAndIncrement();
             this.param = param;
         }
 
