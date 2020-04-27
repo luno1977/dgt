@@ -7,6 +7,7 @@ import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.ThemableLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import de.luno1977.dgt.livechess.model.FEN;
 
 import java.util.Map;
 
@@ -14,6 +15,8 @@ public class ChessBoardView extends FlexLayout {
 
     public static final int NUMBER_OF_ROWS = 8;
     public static final int NUMBER_OF_COLS = 8;
+
+    public static final FEN START_FEN = new FEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
     private HorizontalLayout self = new HorizontalLayout();
     private SquareView[][] squares = new SquareView[NUMBER_OF_ROWS][NUMBER_OF_COLS];
@@ -57,7 +60,7 @@ public class ChessBoardView extends FlexLayout {
 
         add(self);
 
-        present("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+        present(START_FEN);
 
     }
 
@@ -96,6 +99,10 @@ public class ChessBoardView extends FlexLayout {
                 }
             }
         }
+    }
+
+    public void present(FEN fen) {
+        this.present(fen.getFen().substring(0, fen.getFen().indexOf(" ")));
     }
 
     private void setPlain(ThemableLayout layout) {

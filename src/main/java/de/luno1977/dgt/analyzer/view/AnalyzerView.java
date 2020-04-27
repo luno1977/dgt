@@ -19,6 +19,7 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 
 import javax.servlet.annotation.WebServlet;
+import java.util.Arrays;
 
 /**
  * The main view contains a button and a click listener.
@@ -96,7 +97,11 @@ public class AnalyzerView extends HorizontalLayout {
         eventsDisposable = events.observeOn(Schedulers.single()).subscribe(
                 message -> {
                     ui.access(() -> {
-                        //text.setValue(text.getValue() + "\n" + "EBoardEventFeed: " + message);
+                        String[] san = message.getParam().getSan();
+                        boolean match = message.getParam().isMatch();
+                        if (match && san.length > 0) {
+                            text.setValue(text.getValue() + Arrays.toString(san));
+                        }
                         board.present(message.getParam().getBoard());
                         ui.push();
                     });
@@ -109,6 +114,8 @@ public class AnalyzerView extends HorizontalLayout {
                     ui.push();
                 })
         );
+
+        eBoardEventFeed.setup(ChessBoardView.START_FEN);
     }
 
     @Override

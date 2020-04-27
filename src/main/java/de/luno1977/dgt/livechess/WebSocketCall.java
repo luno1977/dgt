@@ -42,7 +42,7 @@ public interface WebSocketCall<P> extends WebSocketCommunication<P> {
     }
 
 
-    // Fixme parameters
+    /** Fixme parameters
     class Flip extends BaseCall<Boolean> {
         public Flip(boolean flipped) { super(flipped); }
 
@@ -58,7 +58,7 @@ public interface WebSocketCall<P> extends WebSocketCommunication<P> {
             public Handler(String fen) { super(new Setup(fen), Ack.class); }
         }
     }
-    //Fixme
+    **/ //Fixme
 
     class BaseCall<P> implements WebSocketCall<P> {
 

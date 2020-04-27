@@ -6,8 +6,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import de.luno1977.dgt.livechess.model.EBoardEventResponse;
 import io.reactivex.Observable;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 public interface WebSocketFeed<E extends WebSocketFeed.Event<EP>, EP, P> extends WebSocketCommunication<P> {
 
     /**
@@ -58,6 +56,32 @@ public interface WebSocketFeed<E extends WebSocketFeed.Event<EP>, EP, P> extends
 
         public long getId() {
             return id;
+        }
+    }
+
+    abstract class FeedCall<P> extends WebSocketCall.BaseCall<WebSocketCall<P>> {
+
+        private final long feedId;
+        private final P param;
+
+        FeedCall(long feedId, P param) {
+            this.feedId = feedId;
+            this.param = param;
+        }
+
+        @Override
+        public String getCall() {
+            return "call";
+        }
+
+        @Override
+        public WebSocketCall<P> getParam() {
+            return new WebSocketCall<P>() {
+                @Override public long getId() { return feedId; }
+                @Override public P getParam() { return param; }
+                @Override @JsonProperty("method") public String getCall() {
+                    return FeedCall.this.getClass().getSimpleName().toLowerCase(); }
+            };
         }
     }
 
