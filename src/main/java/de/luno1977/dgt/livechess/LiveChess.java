@@ -57,14 +57,27 @@ public class LiveChess {
         feed.unsubscribe();
     }
 
-    @ClientEndpoint
+
+    @ClientEndpoint()
     protected static class Connector extends java.util.Observable {
 
-        Session userSession = null;
+        private Session userSession = null;
 
         public Connector(URI endpointURI) throws IOException, DeploymentException {
             WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-            container.connectToServer(this, endpointURI);
+
+            try {
+                Executors.newSingleThreadExecutor().submit(() -> {
+                    try {
+                        // Has a fixed 10 second timeout
+                        container.connectToServer(this, endpointURI);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }).get(400, TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                throw new IOException("Could not connect to LiveChess", e);
+            }
         }
 
         /**
@@ -106,7 +119,6 @@ public class LiveChess {
             System.out.println("Board message:" + message);
         }
     }
-
 
     public abstract static class CallHandler<I extends WebSocketCall<?>, R extends WebSocketResponse<?>>
             implements Observer {
