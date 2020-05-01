@@ -118,9 +118,9 @@ public interface WebSocketFeed<E extends WebSocketFeed.Event<EP>, EP, P> extends
                                     "but transmitter (Observable) is still open and not complete.");
 
                 }
-                new WebSocketCall.Subscribe.Handler(this).call();
                 events = new LiveChess.FeedHandler<>(this.id, eventType);
                 events.start();
+                new WebSocketCall.Subscribe.Handler(this).call();
                 subscribed = true;
             }
         }

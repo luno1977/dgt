@@ -2,7 +2,10 @@ package de.luno1977.dgt.analyzer.impl;
 
 import com.github.bhlangonijr.chesslib.move.Move;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 
 public class Notation {
 
@@ -42,5 +45,10 @@ public class Notation {
         } else {
             throw new IllegalStateException("Position not in notation " + position);
         }
+    }
+
+
+    public Position getCurrentPosition() {
+        return currentPosition;
     }
 }

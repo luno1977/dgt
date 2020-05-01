@@ -14,6 +14,8 @@ import io.reactivex.subjects.PublishSubject;
 import javax.websocket.*;
 import java.io.IOException;
 import java.net.URI;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Observer;
 import java.util.concurrent.*;
 
@@ -234,6 +236,8 @@ public class LiveChess {
         private final ConcurrentLinkedQueue<E> events = new ConcurrentLinkedQueue<>();
         private final Class<E> eventsType;
         private final long feedId;
+        private Instant timeOut;
+        private boolean observed = false;
 
         public FeedHandler(long feedId, Class<E> eventsType) {
             this.publishSubject = PublishSubject.create();
@@ -242,6 +246,7 @@ public class LiveChess {
         }
 
         public void start() {
+            timeOut = Instant.now().plus(15, ChronoUnit.MINUTES);
             ExecutorService executor = getInstance().feedConnectionPool;
             executor.execute(getFeeder());
         }
@@ -251,16 +256,27 @@ public class LiveChess {
                 Connector connector = getInstance().connector;
                 try {
                     connector.addObserver(this);
-                    this.publishSubject.subscribe();
+                    //this.publishSubject.subscribe();
 
                     synchronized (this) {
                         while (!stopped) {
-                            for (E e = events.poll(); e != null; e = events.poll()) {
-                                publishSubject.onNext(e);
+                            if (publishSubject.hasObservers()) {
+                                observed = true;
+                                for (E e = events.poll(); e != null; e = events.poll()) {
+                                    System.out.println("Send: " + e.getId());
+                                    publishSubject.onNext(e);
+                                }
+                            } else {
+                                if (!observed && Instant.now().isAfter(timeOut)) {
+                                    System.out.println("Shutdown never observed feed - timeout");
+                                    stop();
+                                }
+                                //just keep last 100 messages, if no observer is there.
+                                for (int i = 100; i <= events.size(); i++) { events.poll(); }
                             }
 
                             try {
-                                this.wait(200);
+                                this.wait(1000);
                             } catch (InterruptedException e) {
                                 System.out.println("Interrupted: " + stopped + ", " + events.size());
                             }

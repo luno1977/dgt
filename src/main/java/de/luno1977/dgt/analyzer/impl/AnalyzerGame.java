@@ -24,4 +24,13 @@ public class AnalyzerGame implements Exportable {
     public void export(ExportFormat exportFormat, OutputStream viaStream) throws IOException {
         viaStream.close();
     }
+
+    public Notation getNotation() {
+        return notation;
+    }
+
+    public Board getMoveGenerator() {
+        return moveGenerator;
+    }
+
 }
