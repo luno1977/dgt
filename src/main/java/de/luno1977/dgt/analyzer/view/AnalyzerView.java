@@ -1,8 +1,11 @@
 package de.luno1977.dgt.analyzer.view;
 
-import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dependency.CssImport;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.page.Push;
@@ -10,16 +13,10 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.PWA;
 import com.vaadin.flow.shared.communication.PushMode;
-import de.luno1977.dgt.livechess.EBoardEventFeed;
-import de.luno1977.dgt.livechess.LiveChess;
-import de.luno1977.dgt.livechess.WebSocketFeed;
-import de.luno1977.dgt.livechess.WebSocketResponse;
-import io.reactivex.Observable;
-import io.reactivex.disposables.Disposable;
-import io.reactivex.schedulers.Schedulers;
+import de.luno1977.dgt.analyzer.impl.BoardFeedAnalyzer;
+import de.luno1977.dgt.livechess.LiveChessException;
 
 import javax.servlet.annotation.WebServlet;
-import java.util.Arrays;
 
 /**
  * The main view contains a button and a click listener.
@@ -33,95 +30,70 @@ import java.util.Arrays;
 @Push(PushMode.MANUAL)
 public class AnalyzerView extends HorizontalLayout {
 
-    private final TextArea text = new TextArea();
-    private Disposable eventsDisposable;
-    private EBoardEventFeed eBoardEventFeed;
-    private final ChessBoardView board;
+    private final TextArea logView = new TextArea();
+
     private final Button connectButton;
-    private final Button disconnectButton;
+    private final Button newGameButton;
+
+    private final BoardFeedAnalyzer analyzer;
+    private final NotationView notation;
+    private final ChessBoardView board;
 
     public AnalyzerView() {
         //Proof that my servlet is used.
         //System.out.println(VaadinServlet.getCurrent().getServletName());
 
+        analyzer = new BoardFeedAnalyzer();
+        Icon connectIcon = new Icon(VaadinIcon.PLUG);
+        connectIcon.setColor("red");
+
+        notation = new NotationView();
+
         board = new ChessBoardView();
         board.setMinWidth("400px");
         board.setMinHeight("400px");
 
-        connectButton = new Button("Connect DGT Board");
-        disconnectButton = new Button("Disconnect DGT Board");
+        connectButton = new Button(connectIcon);
+        connectButton.getElement().setAttribute("title", "Connect DGT Board");
+        newGameButton = new Button(new Icon(VaadinIcon.FILE_ADD));
+        newGameButton.getElement().setAttribute("title", "New Game (from current e-board position)");
 
-        connectButton.addClickListener((ComponentEventListener<ClickEvent<Button>>) event -> {
-            connectToBoard(UI.getCurrent());
-            disconnectButton.setEnabled(true);
-            connectButton.setEnabled(false);
+        connectButton.addClickListener( event -> {
+            try {
+                if (analyzer.isConnected()) {
+                    analyzer.disconnect();
+                    ((Icon) connectButton.getIcon()).setColor("red");
+                    connectButton.getElement().setAttribute("title",
+                            "Disconnected from DGT Board: Press to connect");
+                    this.logView.clear();
+                } else {
+                    analyzer.connect();
+                    ((Icon) connectButton.getIcon()).setColor("green");
+                    connectButton.getElement().setAttribute("title",
+                            "Connected to DGT Board: Press to disconnect");
+                }
+            } catch (LiveChessException lce) {
+                Notification n = new Notification(lce.getMessage(), 6000, Notification.Position.BOTTOM_END);
+                n.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                n.open();
+            }
         });
 
-        disconnectButton.addClickListener((ComponentEventListener<ClickEvent<Button>>) event -> {
-            this.text.clear();
-            LiveChess.getInstance().unsubscribe(eBoardEventFeed);
-            disconnectButton.setEnabled(false);
-            connectButton.setEnabled(true);
-        });
-
-        disconnectButton.setEnabled(false);
+        newGameButton.addClickListener(event -> analyzer.newGame());
 
         VerticalLayout left = new VerticalLayout();
         left.setMinHeight("400px");
         left.setMinWidth("400px");
         left.setSizeUndefined();
-        left.add(board, connectButton, disconnectButton);
+        left.add(new HorizontalLayout(connectButton, newGameButton), board);
 
-        text.setAutofocus(true);
-        text.setSizeFull();
+        logView.setAutofocus(true);
+        logView.setSizeFull();
 
         VerticalLayout right = new VerticalLayout();
-        right.add(text);
+        right.add(notation, logView);
 
         add(left, right);
         setSizeFull();
-    }
-
-    private void connectToBoard(UI ui) {
-
-        LiveChess liveChess = LiveChess.getInstance();
-        WebSocketResponse.EBoardsResponse eBoards = liveChess.getEBoards();
-
-        ui.access(() -> {
-            text.setValue(text.getValue() + "DGT request: " + eBoards.toString() + "\n");
-            ui.push();
-        });
-
-        eBoardEventFeed = liveChess.subscribe(eBoards.getParam().get(0));
-        Observable<WebSocketFeed.EBoardEvent> events = eBoardEventFeed.events();
-        eventsDisposable = events.observeOn(Schedulers.single()).subscribe(
-                message -> {
-                    ui.access(() -> {
-                        String[] san = message.getParam().getSan();
-                        boolean match = message.getParam().isMatch();
-                        if (match && san.length > 0) {
-                            text.setValue(text.getValue() + Arrays.toString(san));
-                        }
-                        board.present(message.getParam().getBoard());
-                        ui.push();
-                    });
-                },
-                error -> {
-                    throw new RuntimeException(error);
-                },
-                () -> ui.access(() -> {
-                    text.setValue(text.getValue() + "\n Completed: " + eBoardEventFeed);
-                    ui.push();
-                })
-        );
-
-        eBoardEventFeed.setup(ChessBoardView.START_FEN);
-    }
-
-    @Override
-    protected void finalize() throws Throwable {
-        super.finalize();
-        LiveChess.getInstance().unsubscribe(eBoardEventFeed);
-        eventsDisposable.dispose();
     }
 }

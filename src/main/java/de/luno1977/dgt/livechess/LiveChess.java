@@ -23,17 +23,14 @@ import java.util.concurrent.*;
 public class LiveChess {
 
     private static LiveChess instance;
-    private final Connector connector;
+
+    private URI wsEndpoint;
+    private Connector connector;
     private final ExecutorService callConnectionPool = Executors.newFixedThreadPool(5);
     private final ExecutorService feedConnectionPool = Executors.newCachedThreadPool();
 
     private LiveChess() {
-        URI wsEndpoint = LiveChessConfig.getInstance().getLiveChessWebSocketEndpoint();
-        try {
-            connector = new Connector(wsEndpoint);
-        } catch (IOException | DeploymentException e) {
-            throw new LiveChessException("Could not connect to LiveChess under: " + wsEndpoint, e);
-        }
+        wsEndpoint = LiveChessConfig.getInstance().getLiveChessWebSocketEndpoint();
     }
 
     public static LiveChess getInstance() {
@@ -41,6 +38,35 @@ public class LiveChess {
             instance = new LiveChess();
         }
         return instance;
+    }
+
+    public void connect() {
+        try {
+            connector = new Connector(wsEndpoint);
+        } catch (IOException | DeploymentException e) {
+            throw new LiveChessException("Could not connect to LiveChess under: " + wsEndpoint, e);
+        }
+    }
+
+    public void disconnect() {
+        try {
+            connector.userSession.close();
+            connector = null;
+        } catch (IOException e) {
+            throw new LiveChessException("Could not close connection to LiveChess under: " + wsEndpoint, e);
+        }
+    }
+
+    public void setWsEndpoint(URI wsEndpoint) {
+        if (connector == null) {
+            this.wsEndpoint = wsEndpoint;
+        } else {
+            throw new IllegalStateException("Can not change endpoint if connected.");
+        }
+    }
+
+    public URI getWsEndpoint() {
+        return wsEndpoint;
     }
 
     public EBoardsResponse getEBoards() { return new EBoards.Handler().call(); }
