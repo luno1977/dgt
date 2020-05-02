@@ -1,6 +1,7 @@
 package de.luno1977.dgt.livechess;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -23,7 +24,7 @@ public class ConnectorTest {
         }
     }
 
-    @Test
+    @Test @Ignore
     public void testConnection() throws Exception {
 
         final LiveChess.Connector liveChessConnection =
