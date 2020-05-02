@@ -9,10 +9,12 @@ import java.util.TreeMap;
 
 public class Notation {
 
+    private final Position startPosition;
     private Position currentPosition;
     private NavigableMap<Position, List<Move>> lines = new TreeMap<>();
 
     public Notation(Position startPosition) {
+        this.startPosition = startPosition;
         this.currentPosition = startPosition;
         lines.put(startPosition, new ArrayList<>());
     }
@@ -47,8 +49,35 @@ public class Notation {
         }
     }
 
+    public Position findFirstByBoardRep(String boardRep) {
+        for (Position p : lines.navigableKeySet()) {
+            if (p.getFen().startsWith(boardRep)) {
+                return p;
+            }
+        }
+
+        return null;
+    }
+
 
     public Position getCurrentPosition() {
         return currentPosition;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder out = new StringBuilder();
+        out.append("Notation:\n");
+        out.append("\tStartAt="+startPosition.getFen() + "\n");
+        out.append("\tCurrent="+currentPosition.getFen() + "\n");
+        for (Position p : lines.navigableKeySet()) {
+            String marker = "";
+            if (p.equals(currentPosition)) {
+                marker = ">>>";
+            }
+            out.append("\t\tPosition: "+ marker + p.getFen() + " contains follow up moves: " + lines.get(p) + "\n");
+        }
+
+        return out.toString();
     }
 }

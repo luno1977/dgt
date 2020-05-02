@@ -1,5 +1,6 @@
 package de.luno1977.dgt.analyzer.view;
 
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.icon.Icon;
@@ -15,6 +16,7 @@ import com.vaadin.flow.server.PWA;
 import com.vaadin.flow.shared.communication.PushMode;
 import de.luno1977.dgt.analyzer.impl.BoardFeedAnalyzer;
 import de.luno1977.dgt.livechess.LiveChessException;
+import io.reactivex.schedulers.Schedulers;
 
 import javax.servlet.annotation.WebServlet;
 
@@ -39,19 +41,22 @@ public class AnalyzerView extends HorizontalLayout {
     private final NotationView notation;
     private final ChessBoardView board;
 
+    private final UI ui;
+
     public AnalyzerView() {
+        ui = UI.getCurrent();
         //Proof that my servlet is used.
         //System.out.println(VaadinServlet.getCurrent().getServletName());
-
-        analyzer = new BoardFeedAnalyzer();
-        Icon connectIcon = new Icon(VaadinIcon.PLUG);
-        connectIcon.setColor("red");
 
         notation = new NotationView();
 
         board = new ChessBoardView();
         board.setMinWidth("400px");
         board.setMinHeight("400px");
+
+        analyzer = new BoardFeedAnalyzer();
+        Icon connectIcon = new Icon(VaadinIcon.PLUG);
+        connectIcon.setColor("red");
 
         connectButton = new Button(connectIcon);
         connectButton.getElement().setAttribute("title", "Connect DGT Board");
@@ -61,16 +66,9 @@ public class AnalyzerView extends HorizontalLayout {
         connectButton.addClickListener( event -> {
             try {
                 if (analyzer.isConnected()) {
-                    analyzer.disconnect();
-                    ((Icon) connectButton.getIcon()).setColor("red");
-                    connectButton.getElement().setAttribute("title",
-                            "Disconnected from DGT Board: Press to connect");
-                    this.logView.clear();
+                    disconnect();
                 } else {
-                    analyzer.connect();
-                    ((Icon) connectButton.getIcon()).setColor("green");
-                    connectButton.getElement().setAttribute("title",
-                            "Connected to DGT Board: Press to disconnect");
+                   connect();
                 }
             } catch (LiveChessException lce) {
                 Notification n = new Notification(lce.getMessage(), 6000, Notification.Position.BOTTOM_END);
@@ -95,5 +93,31 @@ public class AnalyzerView extends HorizontalLayout {
 
         add(left, right);
         setSizeFull();
+    }
+
+    private void connect() {
+        analyzer.getBoardRepEvents().observeOn(Schedulers.single()).subscribe(boardRep ->
+                ui.access(() -> {
+                    board.present(boardRep);
+                    ui.push();
+                }));
+
+        analyzer.getNotationLog().observeOn(Schedulers.single()).subscribe(notationLog ->
+                ui.access(() -> {
+                    logView.setValue(notationLog);
+                    ui.push();
+                }));
+        analyzer.connect();
+        ((Icon) connectButton.getIcon()).setColor("green");
+        connectButton.getElement().setAttribute("title",
+                "Connected to DGT Board: Press to disconnect");
+    }
+
+    private void disconnect() {
+        analyzer.disconnect();
+        ((Icon) connectButton.getIcon()).setColor("red");
+        connectButton.getElement().setAttribute("title",
+                "Disconnected from DGT Board: Press to connect");
+        this.logView.clear();
     }
 }

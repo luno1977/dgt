@@ -30,11 +30,12 @@ public class Position implements Comparable<Position> {
         Board ot = new Board(); ot.loadFromFen(checkNotNull(other).fen);
 
         int moveCountCompare = Integer.compare(my.getMoveCounter(), ot.getMoveCounter());
-        if (moveCountCompare == 0) {
-            return my.getSideToMove().compareTo(ot.getSideToMove());
-        } else {
-            return moveCountCompare;
-        }
+        if (moveCountCompare != 0) return moveCountCompare;
+
+        int sideToMoveCompare = my.getSideToMove().compareTo(ot.getSideToMove());
+        if (sideToMoveCompare != 0) return sideToMoveCompare;
+
+        return getFen().compareTo(other.getFen());
     }
 
     @Override

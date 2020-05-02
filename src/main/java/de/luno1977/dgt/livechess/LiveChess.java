@@ -192,7 +192,8 @@ public class LiveChess {
                     }
 
                     if (error != null) {
-                        throw new LiveChessException(error.getParam().getMessage(), error.getParam().getStacktrace());
+                        throw new LiveChessException(error.getParam().getMessage(),
+                                error.getParam().getStacktrace());
                     }
 
                 } catch (Exception e) {

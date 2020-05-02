@@ -65,9 +65,8 @@ public class ChessBoardView extends FlexLayout {
     }
 
     public void present(String fenPeacePlacement) {
-        if (fenPeacePlacement == null) return;
-
         System.out.println("FEN: " + fenPeacePlacement);
+        if (fenPeacePlacement == null) return;
 
         int row = 0; int column = 0;
         for (int i = 0; i < fenPeacePlacement.length(); i++) {
